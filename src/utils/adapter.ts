@@ -8,7 +8,7 @@ import adapters from "../adapters";
 import { maxBlocksToQueryByChain, nonBlocksChains } from "./constants";
 import { BridgeAdapter, AsyncBridgeAdapter } from "../helpers/bridgeAdapter.type";
 import { getCurrentUnixTimestamp } from "./date";
-import type { RecordedBlocks } from "./types";
+import type { EventData, RecordedBlocks } from "./types";
 import { wait } from "../helpers/etherscan";
 import { lookupBlock } from "@defillama/sdk/build/util";
 import { BridgeNetwork } from "../data/types";
@@ -24,7 +24,7 @@ const retry = require("async-retry");
 const SECONDS_IN_DAY = 86400;
 
 export const bridgesToSkip = [
-  "across",
+  // "across",
   "wormhole",
   "layerzero",
   "hyperlane",
@@ -462,7 +462,7 @@ export const runAdapterHistorical = async (
     const maxRetries = 3;
     while (retryCount < maxRetries) {
       try {
-        const eventLogs = await retry(
+        const eventLogs: EventData[] = await retry(
           () =>
             adapterChainEventsFn(block, endBlockForQuery).catch((e) => {
               console.error(
@@ -523,7 +523,7 @@ export const runAdapterHistorical = async (
                 latestSolanaBlock = await getLatestBlock("solana");
                 const connection = getConnection();
 
-                const blockTimePromises = eventLogs.map(async (event: any) => {
+                const blockTimePromises = eventLogs.map(async (event: EventData) => {
                   const blockTime = await retry(async () => connection.getBlockTime(event.blockNumber), { retries: 3 });
                   return { blockNumber: event.blockNumber, blockTime, chainOverride: event.chainOverride };
                 });
@@ -587,8 +587,10 @@ export const runAdapterHistorical = async (
                   chainOverride,
                   isUSDVolume,
                   txsCountedAs,
-                  originChain,
+                  chain: originChain,
                   timestamp: realBlockTimestamp,
+                  destinationChainId,
+                  destinationTxHash,
                 } = log;
                 const bucket = Math.floor(((blockNumber - minBlock) * 9) / blockRange);
                 const timestamp = (blockTimestamps[bucket] ?? 0) * 1000;
@@ -641,7 +643,9 @@ export const runAdapterHistorical = async (
                         is_deposit: isDeposit,
                         is_usd_volume: isUSDVolume ?? false,
                         txs_counted_as: txsCountedAs ?? 0,
-                        origin_chain: originChain ?? null,
+                        origin_chain: originChain?.toString() ?? null,
+                        destination_chain_id : destinationChainId?.toString() ?? null,
+                        destination_tx_hash : destinationTxHash ?? null
                       },
                       onConflict
                     );

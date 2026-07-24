@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS bridges.transactions (
     is_usd_volume BOOLEAN,
     txs_counted_as INTEGER,
     origin_chain VARCHAR,
+    destination_chain_id VARCHAR,
+    destination_tx_hash VARCHAR,
     
     PRIMARY KEY(id),
     UNIQUE (bridge_id, chain, tx_hash, token, tx_from, tx_to),
