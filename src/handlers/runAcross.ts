@@ -259,7 +259,7 @@ export const handler = async () => {
         );
         for (const deposit of deposits) {
           if (!withinTsWindow(deposit.depositBlockTimestamp, startTs, endTs)) continue;
-          const event = convertToDepositEvent(deposit);
+          const event = convertToDepositEvent(deposit, chainId);
           if (!event) continue;
           sourceTransactions.push({
             bridge_id: bridgeId,
@@ -288,7 +288,7 @@ export const handler = async () => {
         );
         for (const deposit of withdrawals) {
           if (!withinTsWindow(deposit.fillBlockTimestamp, startTs, endTs)) continue;
-          const event = convertToWithdrawalEvent(deposit);
+          const event = convertToWithdrawalEvent(deposit, chainId);
           if (!event) continue;
           destinationTransactions.push({
             bridge_id: bridgeId,

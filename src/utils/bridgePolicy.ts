@@ -1,5 +1,5 @@
 export const bridgesToSkip = [
-  "across",
+  // "across",
   "wormhole",
   "layerzero",
   "hyperlane",

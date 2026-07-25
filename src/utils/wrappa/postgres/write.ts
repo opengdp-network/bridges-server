@@ -27,6 +27,8 @@ const txTypes = {
   is_usd_volume: "boolean",
   txs_counted_as: "number",
   origin_chain: "string",
+  destination_chain_id: "string",
+  destination_tx_hash: "string",
 } as { [key: string]: string };
 
 export type TransactionInsertParams = {
@@ -43,6 +45,8 @@ export type TransactionInsertParams = {
   is_usd_volume: boolean;
   txs_counted_as: number | null;
   origin_chain: string | null;
+  destination_chain_id: string | null;
+  destination_tx_hash: string | null;
 };
 
 const requiredTransactionFields = new Set([

@@ -142,7 +142,7 @@ export const fetchAllDeposits = async (params: Record<string, string | number>):
       limit: MAX_LIMIT,
       skip,
     });
-    
+
     allDeposits.push(...deposits);
     
     // If we got less than the limit, we've fetched all pages
@@ -166,7 +166,7 @@ export const fetchAllDeposits = async (params: Record<string, string | number>):
  * Convert a deposit from the API to the EventData format for a DEPOSIT event
  * (funds leaving the origin chain)
  */
-export const convertToDepositEvent = (deposit: AcrossDeposit): EventData | null => {
+export const convertToDepositEvent = (deposit: AcrossDeposit, originChainId: number): EventData | null => {
   if (!deposit.depositTxHash || !deposit.inputToken || !deposit.inputAmount) {
     return null;
   }
@@ -186,6 +186,9 @@ export const convertToDepositEvent = (deposit: AcrossDeposit): EventData | null 
     amount: ethers.BigNumber.from(deposit.inputAmount),
     isDeposit: true,
     timestamp,
+    chain: originChainId,
+    destinationChainId: deposit.destinationChainId ?? undefined,
+    destinationTxHash: deposit.fillTx ?? undefined,
   };
 };
 
@@ -193,7 +196,7 @@ export const convertToDepositEvent = (deposit: AcrossDeposit): EventData | null 
  * Convert a deposit from the API to the EventData format for a WITHDRAWAL event
  * (funds arriving on the destination chain)
  */
-export const convertToWithdrawalEvent = (deposit: AcrossDeposit): EventData | null => {
+export const convertToWithdrawalEvent = (deposit: AcrossDeposit, destinationChainId: number): EventData | null => {
   // Only include filled deposits for withdrawals
   if (!deposit.fillTx || !deposit.outputToken || !deposit.outputAmount) {
     return null;
@@ -214,6 +217,9 @@ export const convertToWithdrawalEvent = (deposit: AcrossDeposit): EventData | nu
     amount: ethers.BigNumber.from(deposit.outputAmount),
     isDeposit: false,
     timestamp,
+    destinationChainId,
+    chain: deposit.originChainId,
+    destinationTxHash: deposit.fillTx
   };
 };
 
@@ -236,6 +242,7 @@ const constructParams = (chain: string) => {
       originChainId: chainId,
       startBlock: fromBlock,
       endBlock: toBlock,
+      status: "filled"
     };
 
     try {
@@ -248,7 +255,7 @@ const constructParams = (chain: string) => {
       });
       
       for (const deposit of filteredDeposits) {
-        const event = convertToDepositEvent(deposit);
+        const event = convertToDepositEvent(deposit, chainId);
         if (event) {
           events.push(event);
         }
@@ -270,14 +277,13 @@ const constructParams = (chain: string) => {
 
     try {
       const withdrawals = await fetchAllDeposits(withdrawalsParams);
-      
       for (const deposit of withdrawals) {
-        const event = convertToWithdrawalEvent(deposit);
+        const event = convertToWithdrawalEvent(deposit, chainId);
         if (event) {
           events.push(event);
         }
       }
-      
+
       console.log(`[across] Fetched ${withdrawals.length} withdrawals to ${chain} (chainId: ${chainId}) in block range ${fromBlock}-${toBlock}`);
     } catch (error) {
       console.error(`[across] Error fetching withdrawals for ${chain}:`, error);

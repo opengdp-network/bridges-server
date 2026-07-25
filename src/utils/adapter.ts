@@ -8,7 +8,7 @@ import adapters from "../adapters";
 import { maxBlocksToQueryByChain, nonBlocksChains } from "./constants";
 import { BridgeAdapter, AsyncBridgeAdapter } from "../helpers/bridgeAdapter.type";
 import { getCurrentUnixTimestamp } from "./date";
-import type { RecordedBlocks } from "./types";
+import type { EventData, RecordedBlocks } from "./types";
 import { wait } from "../helpers/etherscan";
 import { lookupBlock } from "@defillama/sdk/build/util";
 import { BridgeNetwork } from "../data/types";
@@ -624,6 +624,8 @@ export const runAdapterHistorical = async (
                     txsCountedAs,
                     originChain,
                     timestamp: realBlockTimestamp,
+                    destinationChainId,
+                    destinationTxHash,
                   } = log;
                   const bucket = Math.floor(((blockNumber - minBlock) * 9) / blockRange);
                   const timestamp = (blockTimestamps[bucket] ?? 0) * 1000;
@@ -679,6 +681,8 @@ export const runAdapterHistorical = async (
                             is_usd_volume: isUSDVolume ?? false,
                             txs_counted_as: txsCountedAs ?? 0,
                             origin_chain: originChain ?? null,
+                            destination_chain_id: destinationChainId,
+                            destination_tx_hash: destinationTxHash,
                           },
                           onConflict
                         );
