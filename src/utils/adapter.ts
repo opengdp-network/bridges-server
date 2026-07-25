@@ -505,7 +505,7 @@ export const runAdapterHistorical = async (
     const maxRetries = 3;
     while (retryCount < maxRetries) {
       try {
-        const eventLogs = await retry(
+        const eventLogs: EventData[] = await retry(
           async (bail: (error: Error) => never) => {
             throwIfAborted(signal);
             try {
@@ -622,7 +622,7 @@ export const runAdapterHistorical = async (
                     chainOverride,
                     isUSDVolume,
                     txsCountedAs,
-                    originChain,
+                    chain : originChain,                    
                     timestamp: realBlockTimestamp,
                     destinationChainId,
                     destinationTxHash,
@@ -680,9 +680,9 @@ export const runAdapterHistorical = async (
                             is_deposit: isDeposit,
                             is_usd_volume: isUSDVolume ?? false,
                             txs_counted_as: txsCountedAs ?? 0,
-                            origin_chain: originChain ?? null,
-                            destination_chain_id: destinationChainId,
-                            destination_tx_hash: destinationTxHash,
+                            origin_chain: originChain?.toString() ?? null,
+                            destination_chain_id: destinationChainId?.toString() ?? null,
+                            destination_tx_hash: destinationTxHash?.toString() ?? null,
                           },
                           onConflict
                         );
