@@ -570,38 +570,38 @@ export const runAdapterHistorical = async (
                   solanaTimestampsMap = await resolveSolanaEventTimestamps(eventLogs, getConnection(), signal);
                 }
 
-                for (let i = 0; i < 10; i++) {
-                  const blockNumber = Math.floor(minBlock + i * (blockRange / 10));
-                  for (let j = 0; j < 4; j++) {
-                    try {
-                      if (useChainBlocks && chain !== "solana") {
-                        await wait(100);
-                        block = await retry(async () => provider.getBlock(blockNumber), { retries: 3 });
-                        if (block.timestamp) {
-                          blockTimestamps[i] = block.timestamp;
-                          break;
-                        }
-                      } else if (chain === "solana") {
-                        blockTimestamps[i] = 0;
-                        break;
-                      } else {
-                        blockTimestamps[i] = currentTimestamp;
-                        break;
-                      }
-                    } catch (e: any) {
-                      if (j >= 3) {
-                        console.error(
-                          `[ERROR] Failed to get block for block number ${blockNumber} on chain ${chainContractsAreOn}. Error: ${JSON.stringify(
-                            e
-                          )}`
-                        );
-                        throw new Error(
-                          `Failed to get block timestamps at block number ${blockNumber} on chain ${chainContractsAreOn}`
-                        );
-                      }
-                    }
-                  }
-                }
+                // for (let i = 0; i < 10; i++) {
+                //   const blockNumber = Math.floor(minBlock + i * (blockRange / 10));
+                //   for (let j = 0; j < 4; j++) {
+                //     try {
+                //       if (useChainBlocks && chain !== "solana") {
+                //         await wait(100);
+                //         block = await retry(async () => provider.getBlock(blockNumber), { retries: 3 });
+                //         if (block.timestamp) {
+                //           blockTimestamps[i] = block.timestamp;
+                //           break;
+                //         }
+                //       } else if (chain === "solana") {
+                //         blockTimestamps[i] = 0;
+                //         break;
+                //       } else {
+                //         blockTimestamps[i] = currentTimestamp;
+                //         break;
+                //       }
+                //     } catch (e: any) {
+                //       if (j >= 3) {
+                //         console.error(
+                //           `[ERROR] Failed to get block for block number ${blockNumber} on chain ${chainContractsAreOn}. Error: ${JSON.stringify(
+                //             e
+                //           )}`
+                //         );
+                //         throw new Error(
+                //           `Failed to get block timestamps at block number ${blockNumber} on chain ${chainContractsAreOn}`
+                //         );
+                //       }
+                //     }
+                //   }
+                // }
 
                 const groupedEvents = groupBy(eventLogs, (event: any) => event?.txHash);
                 const filteredEvents = Object.values(groupedEvents)
@@ -633,7 +633,7 @@ export const runAdapterHistorical = async (
                     transferId,
                   } = log;
                   const bucket = Math.floor(((blockNumber - minBlock) * 9) / blockRange);
-                  const timestamp = (blockTimestamps[bucket] ?? 0) * 1000;
+                  // const timestamp = (blockTimestamps[bucket] ?? 0) * 1000;
 
                   let amountString = amount ? amount.toString() : "0";
 
@@ -676,7 +676,7 @@ export const runAdapterHistorical = async (
                             bridge_id: bridgeIdOverride,
                             bridge_name: bridgeDbName,
                             origin_tx_hash: txHash ?? null,
-                            origin_block_ts: solanaTimestampsMap[blockNumber] ?? realBlockTimestamp ?? timestamp,
+                            origin_block_ts: solanaTimestampsMap[blockNumber] ?? realBlockTimestamp,
                             origin_tx_block: blockNumber ?? null,
                             tx_from: from ?? null,
                             tx_to: to ?? null,
