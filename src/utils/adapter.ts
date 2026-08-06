@@ -520,7 +520,7 @@ export const runAdapterHistorical = async (
           },
           { retries: 4, factor: 2 }
         );
-
+        await wait(500);
         if (!eventLogs || eventLogs.length === 0) {
           if (updateProgress) {
             await setAdapterProgress(bridgeDbName, chain, endBlockForQuery);
