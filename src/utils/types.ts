@@ -17,6 +17,11 @@ export type EventData = {
   timestamp?: number; // timestamp of the block if provided
   destinationChainId?: number;
   destinationTxHash?: string;
+  destinationToken?: string;
+  destinationAmount?: ethers.BigNumber;
+  destinationBlock?: number;
+  destinationBlockTs?: number;
+  transferId?: string; // adapter-provided unique transfer identifier (e.g. Across depositId), for bridges where a single tx can contain multiple transfers
 };
 
 export type EventKeyMapping = {

@@ -13,30 +13,34 @@ CREATE TABLE IF NOT EXISTS bridges.config (
 CREATE TABLE IF NOT EXISTS bridges.transactions (
     id INT GENERATED ALWAYS AS IDENTITY,
     bridge_id uuid NOT NULL,
-    tx_hash VARCHAR,
-    ts TIMESTAMPTZ NOT NULL,
-    tx_block INTEGER,
+    bridge_name VARCHAR NOT NULL,
+    origin_tx_hash VARCHAR,
+    origin_block_ts TIMESTAMPTZ NOT NULL,
+    origin_tx_block INTEGER,
     tx_from VARCHAR,
     tx_to VARCHAR,
-    token VARCHAR NOT NULL,
-    amount VARCHAR NOT NULL,
-    is_deposit BOOLEAN NOT NULL,
-    chain VARCHAR NOT NULL,
+    origin_token VARCHAR NOT NULL,
+    destination_token VARCHAR NOT NULL,
+    origin_amount VARCHAR NOT NULL,
+    destination_amount VARCHAR NOT NULL,
     is_usd_volume BOOLEAN,
     txs_counted_as INTEGER,
-    origin_chain VARCHAR,
-    destination_chain_id VARCHAR,
+    origin_chain_id BIGINT,
+    destination_chain_id BIGINT,
     destination_tx_hash VARCHAR,
-    
+    destination_block_ts TIMESTAMPTZ NOT NULL,
+    destination_tx_block INTEGER,
+    transfer_id VARCHAR, --adapter-provided unique transfer identifier (e.g. Across depositId), for bridges where a single tx can contain multiple transfers
+
     PRIMARY KEY(id),
-    UNIQUE (bridge_id, chain, tx_hash, token, tx_from, tx_to),
+    UNIQUE (bridge_name, transfer_id),
     CONSTRAINT fk_bridge_id
         FOREIGN KEY(bridge_id)
             REFERENCES bridges.config(id)
             ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS transactions_ts ON bridges.transactions (ts);
+CREATE INDEX IF NOT EXISTS transactions_ts ON bridges.transactions (origin_tx_block);
 
 CREATE TYPE token_total AS (
     token           VARCHAR,

@@ -15,55 +15,69 @@ const normalizeBlockNumber = (block: number | null): number | null => {
 
 const txTypes = {
   bridge_id: "string",
-  chain: "string",
-  tx_hash: "string",
-  ts: "number",
-  tx_block: "number",
+  bridge_name: "string",
+  origin_tx_hash: "string",
+  origin_block_ts: "number",
+  origin_tx_block: "number",
   tx_from: "string",
   tx_to: "string",
-  token: "string",
-  amount: "string",
-  is_deposit: "boolean",
+  origin_token: "string",
+  destination_token: "string",
+  origin_amount: "string",
+  destination_amount: "string",
   is_usd_volume: "boolean",
   txs_counted_as: "number",
-  origin_chain: "string",
+  origin_chain_id: "string",
   destination_chain_id: "string",
   destination_tx_hash: "string",
+  destination_block_ts: "number",
+  destination_tx_block: "number",
+  transfer_id: "string",
 } as { [key: string]: string };
 
 export type TransactionInsertParams = {
   bridge_id: string;
-  chain: string;
-  tx_hash: string | null;
-  ts: number;
-  tx_block: number | null;
+  bridge_name: string;
+  origin_tx_hash: string | null;
+  origin_block_ts: number;
+  origin_tx_block: number | null;
   tx_from: string | null;
   tx_to: string | null;
-  token: string;
-  amount: string;
-  is_deposit: boolean;
-  is_usd_volume: boolean;
+  origin_token: string;
+  destination_token: string;
+  origin_amount: string;
+  destination_amount: string;
+  is_usd_volume: boolean | null;
   txs_counted_as: number | null;
-  origin_chain: string | null;
+  origin_chain_id: string | null;
   destination_chain_id: string | null;
   destination_tx_hash: string | null;
+  destination_block_ts: number;
+  destination_tx_block: number | null;
+  transfer_id: string;
 };
 
 const requiredTransactionFields = new Set([
   "bridge_id",
-  "chain",
-  "ts",
-  "token",
-  "amount",
-  "is_deposit",
-  "is_usd_volume",
+  "bridge_name",
+  "origin_block_ts",
+  "origin_token",
+  "destination_token",
+  "origin_amount",
+  "destination_amount",
+  "destination_block_ts",
+  "transfer_id",
 ]);
 
 export const sanitizeTransactionParams = (
   params: TransactionInsertParams,
   allowNullTxValues: boolean
 ): TransactionInsertParams => {
-  const sanitized = { ...params, tx_block: normalizeBlockNumber(params.tx_block) } as Record<string, any>;
+  const sanitized = {
+    ...params,
+    origin_tx_block: normalizeBlockNumber(params.origin_tx_block),
+    destination_tx_block: normalizeBlockNumber(params.destination_tx_block),
+  } as Record<string, any>;
   const bridgeId = typeof params?.bridge_id === "string" ? params.bridge_id : "unknown";
 
   for (const [key, expectedType] of Object.entries(txTypes)) {
@@ -88,13 +102,27 @@ export const sanitizeTransactionParams = (
     }
   }
 
-  for (const key of ["bridge_id", "chain", "token", "amount"]) {
+  for (const key of [
+    "bridge_id",
+    "bridge_name",
+    "origin_token",
+    "destination_token",
+    "origin_amount",
+    "destination_amount",
+  ]) {
     if (sanitized[key].length === 0) {
       throw new NonRetryableError(`Transaction for bridgeID ${bridgeId} has an empty value for ${key}.`);
     }
   }
-  if (!Number.isFinite(sanitized.ts)) {
-    throw new NonRetryableError(`Transaction for bridgeID ${bridgeId} has an invalid timestamp ${sanitized.ts}.`);
+  if (!Number.isFinite(sanitized.origin_block_ts)) {
+    throw new NonRetryableError(
+      `Transaction for bridgeID ${bridgeId} has an invalid origin timestamp ${sanitized.origin_block_ts}.`
+    );
+  }
+  if (!Number.isFinite(sanitized.destination_block_ts)) {
+    throw new NonRetryableError(
+      `Transaction for bridgeID ${bridgeId} has an invalid destination timestamp ${sanitized.destination_block_ts}.`
+    );
   }
 
   return sanitized as TransactionInsertParams;
@@ -118,7 +146,7 @@ export const insertTransactionRow = async (
   } else if (onConflict === "upsert") {
     sqlCommand = sql`
       insert into bridges.transactions ${sql(safeParams)}
-      ON CONFLICT (bridge_id, chain, tx_hash, token, tx_from, tx_to)
+      ON CONFLICT (bridge_name, transfer_id)
       DO UPDATE SET ${sql(safeParams)}
     `;
   }
@@ -131,7 +159,7 @@ export const insertTransactionRow = async (
       if (i >= 4) {
         throw new Error(`Could not insert transaction row for bridge ${safeParams.bridge_id}.`);
       } else {
-        console.error(`id: ${safeParams.bridge_id}, txHash: ${safeParams.tx_hash}`, e);
+        console.error(`id: ${safeParams.bridge_id}, txHash: ${safeParams.origin_tx_hash}`, e);
         continue;
       }
     }
@@ -360,34 +388,26 @@ export const insertTransactionRows = async (
       console.error(`[VALIDATION] Skipping invalid transaction: ${(error as Error).message}`);
       return [];
     }
-    if (Number.isNaN(sanitized.ts)) {
-      if (rejectInvalid) {
-        throw new NonRetryableError(
-          `Invalid timestamp value ${sanitized.ts} for transaction ${sanitized.tx_hash ?? "without hash"}.`
+    for (const tsField of ["origin_block_ts", "destination_block_ts"] as const) {
+      const tsValue = sanitized[tsField];
+      const isValidTimestamp = Number.isFinite(tsValue) && tsValue > 0 && tsValue < 2147483647000;
+      if (!isValidTimestamp) {
+        if (rejectInvalid) {
+          throw new NonRetryableError(
+            `Invalid ${tsField} value ${tsValue} for transaction ${sanitized.origin_tx_hash ?? "without hash"}.`
+          );
+        }
+        console.error(
+          `Invalid ${tsField} value ${tsValue} for transaction: bridge_id=${sanitized.bridge_id}, origin_tx_hash=${sanitized.origin_tx_hash}`
         );
+        return [];
       }
-      console.error(
-        `Invalid timestamp value ${sanitized.ts} for transaction: bridge_id=${sanitized.bridge_id}, tx_hash=${sanitized.tx_hash}`
-      );
-      return [];
-    }
-    const isValidTimestamp = sanitized.ts > 0 && sanitized.ts < 2147483647000;
-    if (!isValidTimestamp) {
-      if (rejectInvalid) {
-        throw new NonRetryableError(
-          `Invalid timestamp value ${sanitized.ts} for transaction ${sanitized.tx_hash ?? "without hash"}.`
-        );
-      }
-      console.error(
-        `Invalid timestamp value ${sanitized.ts} for transaction: bridge_id=${sanitized.bridge_id}, tx_hash=${sanitized.tx_hash}`
-      );
-      return [];
     }
     return [sanitized];
   });
 
   const uniqueTransactions = validTransactions.reduce((acc, tx) => {
-    const key = `${tx.bridge_id}-${tx.chain}-${tx.tx_hash}-${tx.token}-${tx.tx_from}-${tx.tx_to}`;
+    const key = `${tx.bridge_id}-${tx.transfer_id}`;
     if (!acc.has(key)) {
       acc.set(key, tx);
     }
@@ -412,15 +432,25 @@ export const insertTransactionRows = async (
   } else if (onConflict === "upsert") {
     sqlCommand = sql`
       INSERT INTO bridges.transactions ${sql(sanitizedTransactions)}
-      ON CONFLICT (bridge_id, chain, tx_hash, token, tx_from, tx_to)
+      ON CONFLICT (bridge_name, transfer_id)
       DO UPDATE SET
-        ts = EXCLUDED.ts,
-        tx_block = EXCLUDED.tx_block,
-        amount = EXCLUDED.amount,
-        is_deposit = EXCLUDED.is_deposit,
+        bridge_name = EXCLUDED.bridge_name,
+        origin_tx_hash = EXCLUDED.origin_tx_hash,
+        origin_block_ts = EXCLUDED.origin_block_ts,
+        origin_tx_block = EXCLUDED.origin_tx_block,
+        tx_from = EXCLUDED.tx_from,
+        tx_to = EXCLUDED.tx_to,
+        origin_token = EXCLUDED.origin_token,
+        destination_token = EXCLUDED.destination_token,
+        origin_amount = EXCLUDED.origin_amount,
+        destination_amount = EXCLUDED.destination_amount,
         is_usd_volume = EXCLUDED.is_usd_volume,
         txs_counted_as = EXCLUDED.txs_counted_as,
-        origin_chain = EXCLUDED.origin_chain
+        origin_chain_id = EXCLUDED.origin_chain_id,
+        destination_chain_id = EXCLUDED.destination_chain_id,
+        destination_tx_hash = EXCLUDED.destination_tx_hash,
+        destination_block_ts = EXCLUDED.destination_block_ts,
+        destination_tx_block = EXCLUDED.destination_tx_block
     `;
   } else {
     sqlCommand = sql`

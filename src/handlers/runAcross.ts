@@ -50,7 +50,7 @@ const mapLimit = async <T, R>(items: T[], limit: number, fn: (item: T, index: nu
 const toDepositKey = (deposit: AcrossDeposit) =>
   `${deposit.depositTxHash || "0x"}:${deposit.fillTx || "0x"}:${deposit.originChainId}:${
     deposit.destinationChainId || 0
-  }:${deposit.depositId ?? ""}:${deposit.depositBlockNumber ?? ""}:${deposit.fillBlockNumber ?? ""}`;
+  }:${deposit.id ?? ""}:${deposit.depositBlockNumber ?? ""}:${deposit.fillBlockNumber ?? ""}`;
 
 const dedupeDeposits = (deposits: AcrossDeposit[]) => {
   const deduped = new Map<string, AcrossDeposit>();
@@ -259,7 +259,7 @@ export const handler = async () => {
         );
         for (const deposit of deposits) {
           if (!withinTsWindow(deposit.depositBlockTimestamp, startTs, endTs)) continue;
-          const event = convertToDepositEvent(deposit, chainId);
+          const event = convertToDepositEvent(deposit);
           if (!event) continue;
           sourceTransactions.push({
             bridge_id: bridgeId,
@@ -288,7 +288,7 @@ export const handler = async () => {
         );
         for (const deposit of withdrawals) {
           if (!withinTsWindow(deposit.fillBlockTimestamp, startTs, endTs)) continue;
-          const event = convertToWithdrawalEvent(deposit, chainId);
+          const event = convertToWithdrawalEvent(deposit);
           if (!event) continue;
           destinationTransactions.push({
             bridge_id: bridgeId,
