@@ -258,7 +258,7 @@ async function main() {
   // Stagger chain starts by 500ms to avoid thundering herd on block lookups
   const chainPromises = tasks.map(async (task, i) => {
     await wait(500 * i);
-    await processChainAllDays(adapter, task, intervals, progress, singleChain);
+    await processChainAllDays(adapter, task, intervals, progress, false);
   });
 
   await Promise.all(chainPromises);
