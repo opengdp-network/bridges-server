@@ -93,23 +93,34 @@ export const transformRowForBigQuery = (row: TransactionRow): Record<string, unk
 const applyModification = (row: TransactionRow): TransactionRow => {
   const modified = { ...row };
 
-  if (modified.origin_chain_id === TRON_CHAIN_ID) {
-    modified.origin_token = toHex(modified.origin_token);
-    modified.origin_token = modified.origin_token.toLowerCase();
-  } else if (modified.origin_chain_id !== SOLANA_CHAIN_ID) {
-    modified.origin_token = modified.origin_token.toLowerCase();
-    if (modified.tx_from) modified.tx_from = modified.tx_from.toLowerCase();
+  try {
+    if (modified.origin_chain_id === TRON_CHAIN_ID) {
+      // make the process idempotent by check if already in base16 then ignore
+      if (!/^0x[0-9a-fA-F]+$/.test(modified.origin_token)) {
+        modified.origin_token = toHex(modified.origin_token);
+      }
+      modified.origin_token = modified.origin_token.toLowerCase();
+    } else if (modified.origin_chain_id !== SOLANA_CHAIN_ID) {
+      modified.origin_token = modified.origin_token.toLowerCase();
+      if (modified.tx_from) modified.tx_from = modified.tx_from.toLowerCase();
+    }
+  
+    if (modified.destination_chain_id === TRON_CHAIN_ID) {
+      if (!/^0x[0-9a-fA-F]+$/.test(modified.destination_token)) {
+        modified.destination_token = toHex(modified.destination_token);
+      }
+      modified.destination_token = modified.destination_token.toLowerCase();
+    } else if (modified.destination_chain_id !== SOLANA_CHAIN_ID) {
+      modified.destination_token = modified.destination_token.toLowerCase();
+      if (modified.tx_to) modified.tx_to = modified.tx_to.toLowerCase();
+    }
+  
+    return modified;
+  } catch (error) {
+    console.log("failed for row", row);
+    console.log(error)
+    throw error
   }
-
-  if (modified.destination_chain_id === TRON_CHAIN_ID) {
-    modified.destination_token = toHex(modified.destination_token);
-    modified.destination_token = modified.destination_token.toLowerCase();
-  } else if (modified.destination_chain_id !== SOLANA_CHAIN_ID) {
-    modified.destination_token = modified.destination_token.toLowerCase();
-    if (modified.tx_to) modified.tx_to = modified.tx_to.toLowerCase();
-  }
-
-  return modified;
 };
 
 const UPDATE_COLUMNS = ["id", "tx_from", "tx_to", "origin_token", "destination_token"] as const;
